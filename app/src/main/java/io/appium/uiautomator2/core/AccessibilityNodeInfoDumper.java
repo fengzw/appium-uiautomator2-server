@@ -25,6 +25,8 @@ import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.appium.uiautomator2.common.exceptions.UiAutomator2Exception;
@@ -92,13 +94,49 @@ public class AccessibilityNodeInfoDumper {
         return xmlDump.toString();
     }
 
+    /**
+     * 将全部emoji字符过滤为空格
+     * @param content
+     * @return
+     */
+    static String removeEmojiAndSymbolFromString(
+            String content) {
+        String utf8tweet = "";
+        try {
+            byte[] utf8Bytes = content.getBytes(
+                    "UTF-8");
+
+            utf8tweet = new String(
+                    utf8Bytes, "UTF-8");
+        } catch (
+                UnsupportedEncodingException e
+                ) {
+            e.printStackTrace();
+        }
+        Pattern unicodeOutliers =
+                Pattern.compile(
+                        "[\uD83E\uDD00-\uD83E\uDDFF]|[\ud83c\udc00-\ud83c\udfff]|[\ud83d\udc00-\ud83d\udfff]|[\u2600-\u27ff]",
+                        Pattern.UNICODE_CASE |
+                                Pattern.CASE_INSENSITIVE
+                );
+        Matcher unicodeOutlierMatcher =
+                unicodeOutliers.matcher(
+                        utf8tweet);
+
+        utf8tweet =
+                unicodeOutlierMatcher.replaceAll(
+                        " ");
+        return utf8tweet;
+    }
 
     private static void dumpNodeRec(AccessibilityNodeInfo node, XmlSerializer serializer, int index, int width, int height) throws IOException {
         serializer.startTag("", "node");
         if (!nafExcludedClass(node) && !nafCheck(node))
             serializer.attribute("", "NAF", Boolean.toString(true));
         serializer.attribute("", "index", Integer.toString(index));
-        serializer.attribute("", "text", safeCharSeqToString(node.getText()));
+
+        String textWithOutEmoji = removeEmojiAndSymbolFromString(safeCharSeqToString(node.getText()));
+        serializer.attribute("", "text", textWithOutEmoji);
         serializer.attribute("", "class", safeCharSeqToString(node.getClassName()));
         serializer.attribute("", "package", safeCharSeqToString(node.getPackageName()));
         serializer.attribute("", "content-desc", safeCharSeqToString(node.getContentDescription()));
